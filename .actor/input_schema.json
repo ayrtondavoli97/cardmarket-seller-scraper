@@ -149,21 +149,45 @@
             "editor": "checkbox",
             "default": false
         },
+        "unblockerProvider": {
+            "title": "Unblocker provider",
+            "type": "string",
+            "description": "Managed unblocker that solves Cardmarket's Cloudflare challenge server-side. RECOMMENDED path. Requires an API key below. 'none' falls back to browser/HTTP (usually blocked).",
+            "editor": "select",
+            "default": "zenrows",
+            "enum": ["zenrows", "scrapfly", "none"],
+            "enumTitles": ["ZenRows", "Scrapfly", "None (use browser/HTTP)"]
+        },
+        "unblockerApiKey": {
+            "title": "Unblocker API key",
+            "type": "string",
+            "description": "Your ZenRows or Scrapfly API key. Get a free ZenRows key (1,000 credits) at zenrows.com. Stored encrypted.",
+            "editor": "textfield",
+            "isSecret": true,
+            "default": ""
+        },
+        "unblockerCountry": {
+            "title": "Unblocker exit country (optional)",
+            "type": "string",
+            "description": "ISO 2-letter country for the unblocker's residential exit IP (e.g. de, it). Leave empty to let the provider choose.",
+            "editor": "textfield",
+            "default": ""
+        },
         "useBrowser": {
-            "title": "Use real browser",
+            "title": "Use real browser (fallback only)",
             "type": "boolean",
-            "description": "Required to pass Cardmarket's Cloudflare JS challenge ('Just a moment...'). Disable only for debugging the lightweight HTTP client.",
+            "description": "Only used when unblockerProvider = none. Requires the Playwright/Camoufox image. Vanilla browsers are usually blocked by Cardmarket's Cloudflare.",
             "editor": "checkbox",
             "default": true
         },
         "browserEngine": {
-            "title": "Browser engine",
+            "title": "Browser engine (fallback only)",
             "type": "string",
-            "description": "camoufox = anti-detect Firefox (passes Cloudflare managed challenge, recommended). chromium = vanilla Playwright (usually blocked by Cardmarket's Cloudflare).",
+            "description": "Which browser to use when unblockerProvider = none and useBrowser = true.",
             "editor": "select",
             "default": "camoufox",
             "enum": ["camoufox", "chromium"],
-            "enumTitles": ["Camoufox (recommended)", "Chromium"]
+            "enumTitles": ["Camoufox", "Chromium"]
         }
     },
     "required": ["game"]

@@ -1,0 +1,12 @@
+# Build with this Dockerfile only if you set unblockerProvider=none and want the
+# Camoufox/Chromium fallback. Point Apify's "Dockerfile path" at .actor/Dockerfile.browser.
+FROM apify/actor-python-playwright:3.12
+
+COPY requirements-browser.txt ./requirements.txt
+
+RUN pip install --no-cache-dir -r requirements.txt \
+    && python3 -m camoufox fetch
+
+COPY . ./
+
+CMD ["python3", "-m", "src"]

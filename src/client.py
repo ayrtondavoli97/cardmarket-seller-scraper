@@ -80,6 +80,12 @@ class CardmarketClient:
         self._warmup = warmup
         self._log = logger
 
+    async def start(self) -> None:
+        return None
+
+    async def close(self) -> None:
+        return None
+
     def _log_warn(self, msg: str) -> None:
         if self._log:
             self._log.warning(msg)

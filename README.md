@@ -1,49 +1,51 @@
 # Cardmarket Seller Listings Scraper
 
 Go from a **free-text search** all the way down to **every seller offer** on
-[Cardmarket](https://www.cardmarket.com) — Europe's largest trading-card
-marketplace — with price, condition, language, quantity, seller, seller country
-and product flags (foil / first edition / signed / altered).
-
-Unlike the trend-page scrapers already on the Store (which only read the two
-"Weekly Top Cards" / "Best Bargains" pages) and unlike URL-only detail scrapers,
-this actor does the full pipeline:
+[Cardmarket](https://www.cardmarket.com): price, condition, language, quantity,
+seller, seller country and product flags (foil / first edition / signed /
+altered).
 
 ```
 search query  ->  product pages  ->  seller offer table  ->  dataset
 ```
 
-## What it does
+## ⚠️ Cardmarket is behind an aggressive Cloudflare managed challenge
 
-- Runs each search query against Cardmarket search and opens the matching
-  product pages (with a cap you control).
-- Also accepts **direct product URLs** if you already have them — more reliable
-  and skips the search step.
-- Explodes each product into its seller offers and returns one row per offer.
-- Filters by minimum condition, card language and seller country.
+Plain HTTP clients (curl_cffi) and even self-hosted stealth browsers (Camoufox)
+get looped on the "Just a moment..." challenge from datacenter/residential IPs.
+The reliable path is a **managed unblocker** that solves Cloudflare server-side.
 
-## Input
+**Recommended setup (default):**
+1. Get an API key from **ZenRows** (free tier: 1,000 credits) or **Scrapfly**.
+2. Set `unblockerProvider` = `zenrows` (or `scrapfly`) and paste the key into
+   `unblockerApiKey` (stored encrypted).
+3. Run. The unblocker returns the final rendered HTML and the parsers do the rest.
 
-| Field | Description |
-|---|---|
-| `game` | Cardmarket section: YuGiOh, Pokemon, Magic, OnePiece, Lorcana, … |
-| `searchQueries` | List of card names / free-text searches |
-| `productUrls` | Direct product URLs (optional; skips search) |
-| `siteLanguage` | URL locale (en/it/de/fr/es) |
-| `maxProductsPerQuery` | Cap on products opened per query |
-| `maxOffersPerProduct` | Cap on offers per product page |
-| `minCondition` | Drop offers below this condition (MT>NM>EX>GD>LP>PL>PO) |
-| `cardLanguage` | Keep only offers in this card language |
-| `sellerCountry` | Keep only sellers from this country name/code |
-| `proxyConfiguration` | **Use RESIDENTIAL** — Cardmarket sits behind Cloudflare |
-| `maxConcurrency` | Parallel requests (keep low) |
-| `requestDelayMs` | Polite jittered delay per request |
-| `maxRetries` | Retries with fresh IP + fingerprint on block |
-| `debugSaveHtml` | Dump raw HTML to key-value store on 0-row pages |
+Cost is typically ~$1-3 per 1,000 successful requests (residential + JS render),
+so this is best for personal / low-volume use, not a high-volume commercial run.
 
-## Output
+## Fetch layers
 
-One dataset item per seller offer:
+| unblockerProvider | Image (Dockerfile) | Result |
+|---|---|---|
+| `zenrows` / `scrapfly` | `.actor/Dockerfile` (lean, default) | Works — Cloudflare solved server-side |
+| `none` + `useBrowser` | `.actor/Dockerfile.browser` | Camoufox/Chromium fallback — usually blocked by Cardmarket |
+| `none` + no browser | either | curl_cffi HTTP — will NOT pass the challenge |
+
+The default lean image ships without browser deps. To use the browser fallback,
+build with `.actor/Dockerfile.browser`.
+
+## Input (main fields)
+
+- `game` — YuGiOh, Pokemon, Magic, OnePiece, Lorcana, …
+- `searchQueries` — card names / free-text searches
+- `productUrls` — direct product URLs (skips search)
+- `unblockerProvider` / `unblockerApiKey` / `unblockerCountry`
+- `maxProductsPerQuery`, `maxOffersPerProduct`
+- `minCondition` (MT>NM>EX>GD>LP>PL>PO), `cardLanguage`, `sellerCountry`
+- `debugSaveHtml` — dump HTML to key-value store on 0-row pages
+
+## Output (one item per offer)
 
 ```json
 {
@@ -52,46 +54,24 @@ One dataset item per seller offer:
   "expansion": "Legend of Blue Eyes White Dragon",
   "productUrl": "https://www.cardmarket.com/en/YuGiOh/Products/Singles/...",
   "sellerName": "SomeSeller",
-  "sellerType": "Professional",
-  "sellerRating": "...",
   "sellerCountry": "Italy",
   "price": 1.5,
-  "priceRaw": "1,50 €",
   "currency": "EUR",
   "condition": "NM",
   "language": "English",
   "quantity": 3,
-  "isFoil": false,
-  "isFirstEdition": false,
-  "isSigned": false,
-  "isAltered": false
+  "isFoil": false
 }
 ```
 
-## How it beats Cloudflare
+## Roadmap / tuning
 
-The client uses [`curl_cffi`](https://github.com/lexiforest/curl_cffi) with
-rotating Chrome TLS/JA3 impersonation, routed through Apify **RESIDENTIAL**
-proxies, with a fresh IP + fingerprint on each retry. This clears Cardmarket's
-standard managed challenge in most cases.
-
-**Limitation:** interactive JavaScript challenges cannot be solved by an HTTP
-client. If a run reports everything blocked, re-run with `debugSaveHtml=true`,
-inspect the dump in the key-value store, and (roadmap) switch to the
-browser-based fallback.
-
-## Roadmap / known tuning points
-
-- **Selector patching:** Cardmarket's markup shifts. Parsers are defensive and
-  dump HTML on 0-row pages so selectors can be updated from a real sample.
-- **Deep offer pagination:** v1 reads the offers rendered on the product page.
-  AJAX "show more" pagination for very long offer lists is a v2 item.
-- **Browser fallback** for interactive Cloudflare challenges.
+- Selector patching: parsers are defensive and dump HTML on 0-row pages so
+  selectors can be updated from a real sample.
+- Deep offer pagination (AJAX "show more") is a v2 item.
 
 ## Legal
 
-This actor extracts only publicly visible product and price information. It does
-not bypass authentication, access private endpoints, or store personal data
-beyond public seller display names. You are responsible for complying with
-Cardmarket's Terms of Service and applicable law (GDPR, copyright) in your
-jurisdiction.
+Extracts only publicly visible product/price info; no auth bypass, no private
+endpoints, no personal data beyond public seller display names. You are
+responsible for complying with Cardmarket's ToS and applicable law.

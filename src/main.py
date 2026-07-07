@@ -17,8 +17,7 @@ from urllib.parse import quote
 from apify import Actor
 
 from .client import CardmarketClient
-from .browser_client import BrowserCardmarketClient
-from .camoufox_client import CamoufoxCardmarketClient
+from .unblocker_client import UnblockerClient
 from .parsers import (
     CONDITION_RANK,
     is_product_page,
@@ -70,6 +69,9 @@ async def main() -> None:
         debug_save_html = bool(actor_input.get("debugSaveHtml", False))
         use_browser = bool(actor_input.get("useBrowser", True))
         browser_engine = actor_input.get("browserEngine", "camoufox")
+        unblocker_provider = actor_input.get("unblockerProvider", "zenrows")
+        unblocker_api_key = actor_input.get("unblockerApiKey", "") or ""
+        unblocker_country = actor_input.get("unblockerCountry", "") or ""
 
         # Normalize direct product URLs (accepts [{url:..}] or ["..."]).
         direct_urls: list[str] = []
@@ -94,24 +96,62 @@ async def main() -> None:
                 return None
             return await proxy_configuration.new_url()
 
-        if use_browser:
-            if browser_engine == "chromium":
-                client = BrowserCardmarketClient(
-                    proxy_url_factory=proxy_url_factory,
-                    max_retries=max_retries,
-                    base_delay_ms=request_delay_ms,
-                    logger=Actor.log,
+        if unblocker_provider in ("zenrows", "scrapfly") and unblocker_api_key:
+            client = UnblockerClient(
+                provider=unblocker_provider,
+                api_key=unblocker_api_key,
+                country=unblocker_country,
+                base_delay_ms=request_delay_ms,
+                logger=Actor.log,
+            )
+            Actor.log.info(
+                f"Fetch layer: {unblocker_provider} unblocker "
+                f"(solves Cloudflare server-side)"
+            )
+        elif unblocker_provider in ("zenrows", "scrapfly") and not unblocker_api_key:
+            Actor.log.warning(
+                f"unblockerProvider='{unblocker_provider}' but no unblockerApiKey set — "
+                f"falling back to the HTTP client, which will NOT pass Cardmarket's "
+                f"Cloudflare challenge. Add your API key to actually get data."
+            )
+            client = CardmarketClient(
+                proxy_url_factory=proxy_url_factory,
+                max_retries=max_retries,
+                base_delay_ms=request_delay_ms,
+                logger=Actor.log,
+            )
+        elif use_browser:
+            # Browser engines need the Playwright/Camoufox image; imported lazily so
+            # the default lean image doesn't require those deps.
+            try:
+                if browser_engine == "chromium":
+                    from .browser_client import BrowserCardmarketClient
+
+                    client = BrowserCardmarketClient(
+                        proxy_url_factory=proxy_url_factory,
+                        max_retries=max_retries,
+                        base_delay_ms=request_delay_ms,
+                        logger=Actor.log,
+                    )
+                    Actor.log.info("Fetch layer: Playwright Chromium")
+                else:
+                    from .camoufox_client import CamoufoxCardmarketClient
+
+                    client = CamoufoxCardmarketClient(
+                        proxy_url_factory=proxy_url_factory,
+                        max_retries=max_retries,
+                        base_delay_ms=request_delay_ms,
+                        logger=Actor.log,
+                    )
+                    Actor.log.info("Fetch layer: Camoufox (anti-detect Firefox)")
+            except ImportError as exc:
+                Actor.log.error(
+                    f"Browser engine '{browser_engine}' requested but its dependencies "
+                    f"are not in this image ({exc}). Use the unblocker (set "
+                    f"unblockerProvider + unblockerApiKey) or build from the "
+                    f"Playwright/Camoufox Dockerfile."
                 )
-                Actor.log.info("Fetch layer: Playwright Chromium")
-            else:
-                client = CamoufoxCardmarketClient(
-                    proxy_url_factory=proxy_url_factory,
-                    max_retries=max_retries,
-                    base_delay_ms=request_delay_ms,
-                    logger=Actor.log,
-                )
-                Actor.log.info("Fetch layer: Camoufox (anti-detect Firefox, CF-challenge capable)")
-            await client.start()
+                return
         else:
             client = CardmarketClient(
                 proxy_url_factory=proxy_url_factory,
@@ -120,6 +160,8 @@ async def main() -> None:
                 logger=Actor.log,
             )
             Actor.log.info("Fetch layer: curl_cffi HTTP (will NOT pass a JS challenge)")
+
+        await client.start()
 
         semaphore = asyncio.Semaphore(max_concurrency)
         stats = {"products": 0, "offers": 0, "blocked": 0, "empty": 0}
@@ -217,8 +259,7 @@ async def main() -> None:
 
         await asyncio.gather(*(scrape_product(u) for u in unique_targets))
 
-        if use_browser:
-            await client.close()
+        await client.close()
 
         Actor.log.info(
             f"Done. products={stats['products']} offers={stats['offers']} "
