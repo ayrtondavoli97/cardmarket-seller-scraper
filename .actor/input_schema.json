@@ -1,0 +1,154 @@
+{
+    "title": "Cardmarket Seller Listings Scraper",
+    "type": "object",
+    "schemaVersion": 1,
+    "properties": {
+        "game": {
+            "title": "Game",
+            "type": "string",
+            "description": "Cardmarket game section to target. Maps to the URL path segment (e.g. YuGiOh, Pokemon, Magic).",
+            "editor": "select",
+            "default": "YuGiOh",
+            "enum": [
+                "YuGiOh",
+                "Pokemon",
+                "Magic",
+                "OnePiece",
+                "Lorcana",
+                "FleshAndBlood",
+                "Digimon",
+                "Dragonball"
+            ],
+            "enumTitles": [
+                "Yu-Gi-Oh!",
+                "Pokémon",
+                "Magic: The Gathering",
+                "One Piece",
+                "Disney Lorcana",
+                "Flesh and Blood",
+                "Digimon",
+                "Dragon Ball"
+            ]
+        },
+        "searchQueries": {
+            "title": "Search queries",
+            "type": "array",
+            "description": "Card names / free-text searches. Each is run against Cardmarket search, then every matching product is exploded into seller offers. Leave empty if you pass product URLs directly.",
+            "editor": "stringList",
+            "prefill": ["Blue-Eyes White Dragon"],
+            "default": []
+        },
+        "productUrls": {
+            "title": "Product URLs (optional)",
+            "type": "array",
+            "description": "Direct Cardmarket single-product URLs. More reliable than search — skips the search step and scrapes offers straight away.",
+            "editor": "requestListSources",
+            "default": []
+        },
+        "siteLanguage": {
+            "title": "Site language",
+            "type": "string",
+            "description": "Cardmarket localization (URL locale prefix). Only affects labels, not the offers themselves.",
+            "editor": "select",
+            "default": "en",
+            "enum": ["en", "it", "de", "fr", "es"],
+            "enumTitles": ["English", "Italiano", "Deutsch", "Français", "Español"]
+        },
+        "maxProductsPerQuery": {
+            "title": "Max products per query",
+            "type": "integer",
+            "description": "Cap on how many products to open per search query.",
+            "editor": "number",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 200
+        },
+        "maxOffersPerProduct": {
+            "title": "Max offers per product",
+            "type": "integer",
+            "description": "Cap on seller offers extracted per product page.",
+            "editor": "number",
+            "default": 50,
+            "minimum": 1,
+            "maximum": 1000
+        },
+        "minCondition": {
+            "title": "Minimum condition",
+            "type": "string",
+            "description": "Drop offers below this condition. MT > NM > EX > GD > LP > PL > PO.",
+            "editor": "select",
+            "default": "PO",
+            "enum": ["MT", "NM", "EX", "GD", "LP", "PL", "PO"],
+            "enumTitles": [
+                "Mint (MT)",
+                "Near Mint (NM)",
+                "Excellent (EX)",
+                "Good (GD)",
+                "Light Played (LP)",
+                "Played (PL)",
+                "Poor (PO)"
+            ]
+        },
+        "cardLanguage": {
+            "title": "Card language filter (optional)",
+            "type": "string",
+            "description": "Keep only offers whose card is in this language. Leave empty for all languages.",
+            "editor": "select",
+            "default": "",
+            "enum": ["", "English", "Italian", "German", "French", "Spanish", "Japanese"],
+            "enumTitles": ["Any", "English", "Italian", "German", "French", "Spanish", "Japanese"]
+        },
+        "sellerCountry": {
+            "title": "Seller country filter (optional)",
+            "type": "string",
+            "description": "ISO 2-letter country code to keep only sellers from that country (e.g. IT). Leave empty for all.",
+            "editor": "textfield",
+            "default": ""
+        },
+        "proxyConfiguration": {
+            "title": "Proxy configuration",
+            "type": "object",
+            "description": "Cardmarket sits behind Cloudflare. RESIDENTIAL proxies are strongly recommended.",
+            "editor": "proxy",
+            "default": {
+                "useApifyProxy": true,
+                "apifyProxyGroups": ["RESIDENTIAL"]
+            }
+        },
+        "maxConcurrency": {
+            "title": "Max concurrency",
+            "type": "integer",
+            "description": "Parallel requests. Keep low to avoid tripping Cloudflare.",
+            "editor": "number",
+            "default": 3,
+            "minimum": 1,
+            "maximum": 20
+        },
+        "requestDelayMs": {
+            "title": "Delay between requests (ms)",
+            "type": "integer",
+            "description": "Base polite delay per request (jittered).",
+            "editor": "number",
+            "default": 1200,
+            "minimum": 0,
+            "maximum": 20000
+        },
+        "maxRetries": {
+            "title": "Max retries per request",
+            "type": "integer",
+            "description": "Retries with a fresh proxy IP + impersonation profile on Cloudflare block or error.",
+            "editor": "number",
+            "default": 4,
+            "minimum": 0,
+            "maximum": 10
+        },
+        "debugSaveHtml": {
+            "title": "Save HTML on parse failure",
+            "type": "boolean",
+            "description": "Dump raw HTML to the key-value store when a page yields 0 rows, so selectors can be patched.",
+            "editor": "checkbox",
+            "default": false
+        }
+    },
+    "required": ["game"]
+}

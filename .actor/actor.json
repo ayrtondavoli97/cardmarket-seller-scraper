@@ -1,0 +1,43 @@
+{
+    "actorSpecification": 1,
+    "name": "cardmarket-seller-scraper",
+    "title": "Cardmarket Seller Listings Scraper",
+    "description": "Search Cardmarket and explode every product into full seller-level offers: price, condition, language, quantity, seller rating and country.",
+    "version": "0.1",
+    "meta": {
+        "templateId": "python-start"
+    },
+    "input": "./input_schema.json",
+    "dockerfile": "./Dockerfile",
+    "storages": {
+        "dataset": {
+            "actorSpecification": 1,
+            "title": "Cardmarket seller offers",
+            "views": {
+                "offers": {
+                    "title": "Seller offers",
+                    "transformation": {
+                        "fields": [
+                            "cardName",
+                            "expansion",
+                            "price",
+                            "currency",
+                            "condition",
+                            "language",
+                            "isFoil",
+                            "quantity",
+                            "sellerName",
+                            "sellerType",
+                            "sellerCountry",
+                            "sellerRating",
+                            "productUrl"
+                        ]
+                    },
+                    "display": {
+                        "component": "table"
+                    }
+                }
+            }
+        }
+    }
+}
