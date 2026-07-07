@@ -267,8 +267,8 @@ async def main() -> None:
         )
         if stats["blocked"] and stats["offers"] == 0:
             Actor.log.warning(
-                "All requests were blocked and nothing was scraped. Check that "
-                "proxyConfiguration uses RESIDENTIAL and useBrowser=true; inspect the "
-                "BLOCK DIAG log lines and debugSaveHtml dumps to see what Cloudflare "
-                "is serving."
+                "All requests were blocked/failed and nothing was scraped. Check the "
+                "BLOCK DIAG / fetch-layer log lines above: an unblocker AUTH/quota error "
+                "means the API key or credits; a 'Just a moment...' page means the fetch "
+                "layer didn't solve Cloudflare (use a working unblockerProvider + key)."
             )

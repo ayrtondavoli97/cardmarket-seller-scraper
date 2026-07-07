@@ -51,7 +51,7 @@ class UnblockerClient:
         logger=None,
     ) -> None:
         self._provider = provider
-        self._api_key = api_key
+        self._api_key = (api_key or "").strip()
         self._country = country
         self._max_retries = max_retries
         self._base_delay_ms = base_delay_ms
