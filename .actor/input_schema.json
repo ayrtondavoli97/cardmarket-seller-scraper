@@ -148,6 +148,13 @@
             "description": "Dump raw HTML to the key-value store when a page yields 0 rows, so selectors can be patched.",
             "editor": "checkbox",
             "default": false
+        },
+        "useBrowser": {
+            "title": "Use real browser (Playwright)",
+            "type": "boolean",
+            "description": "Required to pass Cardmarket's Cloudflare JS challenge ('Just a moment...'). Disable only for debugging the lightweight HTTP client.",
+            "editor": "checkbox",
+            "default": true
         }
     },
     "required": ["game"]

@@ -17,6 +17,7 @@ from urllib.parse import quote
 from apify import Actor
 
 from .client import CardmarketClient
+from .browser_client import BrowserCardmarketClient
 from .parsers import (
     CONDITION_RANK,
     is_product_page,
@@ -66,6 +67,7 @@ async def main() -> None:
         request_delay_ms = int(actor_input.get("requestDelayMs", 1200))
         max_retries = int(actor_input.get("maxRetries", 4))
         debug_save_html = bool(actor_input.get("debugSaveHtml", False))
+        use_browser = bool(actor_input.get("useBrowser", True))
 
         # Normalize direct product URLs (accepts [{url:..}] or ["..."]).
         direct_urls: list[str] = []
@@ -90,12 +92,23 @@ async def main() -> None:
                 return None
             return await proxy_configuration.new_url()
 
-        client = CardmarketClient(
-            proxy_url_factory=proxy_url_factory,
-            max_retries=max_retries,
-            base_delay_ms=request_delay_ms,
-            logger=Actor.log,
-        )
+        if use_browser:
+            client = BrowserCardmarketClient(
+                proxy_url_factory=proxy_url_factory,
+                max_retries=max_retries,
+                base_delay_ms=request_delay_ms,
+                logger=Actor.log,
+            )
+            await client.start()
+            Actor.log.info("Fetch layer: Playwright browser (Cloudflare JS challenge capable)")
+        else:
+            client = CardmarketClient(
+                proxy_url_factory=proxy_url_factory,
+                max_retries=max_retries,
+                base_delay_ms=request_delay_ms,
+                logger=Actor.log,
+            )
+            Actor.log.info("Fetch layer: curl_cffi HTTP (will NOT pass a JS challenge)")
 
         semaphore = asyncio.Semaphore(max_concurrency)
         stats = {"products": 0, "offers": 0, "blocked": 0, "empty": 0}
@@ -193,13 +206,17 @@ async def main() -> None:
 
         await asyncio.gather(*(scrape_product(u) for u in unique_targets))
 
+        if use_browser:
+            await client.close()
+
         Actor.log.info(
             f"Done. products={stats['products']} offers={stats['offers']} "
             f"blocked={stats['blocked']} empty={stats['empty']}"
         )
         if stats["blocked"] and stats["offers"] == 0:
             Actor.log.warning(
-                "All requests were blocked and nothing was scraped. Cardmarket's "
-                "Cloudflare challenge likely needs RESIDENTIAL proxies (or a browser "
-                "fallback). Check proxyConfiguration and re-run with debugSaveHtml=true."
+                "All requests were blocked and nothing was scraped. Check that "
+                "proxyConfiguration uses RESIDENTIAL and useBrowser=true; inspect the "
+                "BLOCK DIAG log lines and debugSaveHtml dumps to see what Cloudflare "
+                "is serving."
             )
