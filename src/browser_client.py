@@ -26,15 +26,13 @@ LAUNCH_ARGS = [
     "--disable-blink-features=AutomationControlled",
     "--no-sandbox",
     "--disable-dev-shm-usage",
-    "--disable-gpu",
     "--window-size=1366,768",
 ]
 
+# Keep stealth minimal: in headful mode the browser is already coherent, and
+# clumsy spoofing (fake plugin arrays etc.) is itself a bot signal.
 STEALTH_INIT_JS = """
 Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
-window.chrome = window.chrome || { runtime: {} };
-Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en', 'it'] });
-Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
 """
 
 
@@ -90,8 +88,11 @@ class BrowserCardmarketClient:
 
     async def start(self) -> None:
         self._playwright = await async_playwright().start()
+        # Headful under xvfb: the Apify Playwright image wraps the process in
+        # xvfb-run, so a "real" windowed Chromium is available. Headless mode is
+        # heavily fingerprinted by Cloudflare and gets hard-blocked.
         self._browser = await self._playwright.chromium.launch(
-            headless=True, args=LAUNCH_ARGS
+            headless=False, args=LAUNCH_ARGS
         )
 
     async def close(self) -> None:
@@ -111,9 +112,26 @@ class BrowserCardmarketClient:
             self._warn(f"Could not obtain proxy URL: {exc}")
             return None
 
+    async def _try_click_turnstile(self, page) -> None:
+        """If the challenge shows an interactive Turnstile checkbox, click it."""
+        try:
+            iframe_el = await page.query_selector(
+                "iframe[src*='challenges.cloudflare.com']"
+            )
+            if not iframe_el:
+                return
+            box = await iframe_el.bounding_box()
+            if not box:
+                return
+            # The checkbox sits near the left edge of the widget.
+            await page.mouse.click(box["x"] + 30, box["y"] + box["height"] / 2)
+        except Exception:  # noqa: BLE001
+            pass
+
     async def _wait_challenge(self, page) -> bool:
         """Wait for the Cloudflare challenge to self-resolve. True if cleared."""
         deadline = asyncio.get_event_loop().time() + self._challenge_timeout_s
+        clicked = False
         while asyncio.get_event_loop().time() < deadline:
             try:
                 title = await page.title()
@@ -126,6 +144,12 @@ class BrowserCardmarketClient:
                 except Exception:  # noqa: BLE001
                     pass
                 return True
+            # After a few seconds of no auto-resolve, try the Turnstile checkbox once.
+            if not clicked and (deadline - asyncio.get_event_loop().time()) < (
+                self._challenge_timeout_s - 6
+            ):
+                await self._try_click_turnstile(page)
+                clicked = True
             await asyncio.sleep(1.5)
         return False
 
