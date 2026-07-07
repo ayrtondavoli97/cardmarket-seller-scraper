@@ -163,8 +163,7 @@
             "type": "string",
             "description": "Your ZenRows or Scrapfly API key. Get a free ZenRows key (1,000 credits) at zenrows.com. Stored encrypted.",
             "editor": "textfield",
-            "isSecret": true,
-            "default": ""
+            "isSecret": true
         },
         "unblockerCountry": {
             "title": "Unblocker exit country (optional)",
