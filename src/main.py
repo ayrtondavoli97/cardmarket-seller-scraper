@@ -110,6 +110,18 @@ async def main() -> None:
             except Exception as exc:  # noqa: BLE001
                 Actor.log.warning(f"Failed to save debug HTML: {exc}")
 
+        def log_block_reason(status: int, html: str) -> None:
+            """Log the block page's title + text snippet straight into the run log,
+            so the WAF-vs-JS-challenge question can be answered without opening the
+            key-value store."""
+            import re as _re
+
+            title_m = _re.search(r"<title[^>]*>(.*?)</title>", html or "", _re.I | _re.S)
+            title = (title_m.group(1).strip() if title_m else "(no title)")[:200]
+            text = _re.sub(r"<[^>]+>", " ", html or "")
+            text = _re.sub(r"\s+", " ", text).strip()[:300]
+            Actor.log.warning(f"BLOCK DIAG status={status} | title='{title}' | body='{text}'")
+
         async def scrape_product(url: str, referer: str | None = None) -> None:
             async with semaphore:
                 result = await client.fetch(url, referer=referer)
@@ -117,6 +129,7 @@ async def main() -> None:
                     if result.blocked:
                         stats["blocked"] += 1
                         Actor.log.warning(f"Blocked/failed product page: {url}")
+                        log_block_reason(result.status_code, result.text)
                         await dump_html("blocked_product", result.text)
                     return
 
@@ -153,6 +166,7 @@ async def main() -> None:
             if not result.ok:
                 stats["blocked"] += 1
                 Actor.log.warning(f"Search blocked/failed for '{query}'")
+                log_block_reason(result.status_code, result.text)
                 await dump_html("blocked_search", result.text)
                 continue
 
