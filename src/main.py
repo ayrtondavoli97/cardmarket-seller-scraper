@@ -18,6 +18,7 @@ from apify import Actor
 
 from .client import CardmarketClient
 from .browser_client import BrowserCardmarketClient
+from .camoufox_client import CamoufoxCardmarketClient
 from .parsers import (
     CONDITION_RANK,
     is_product_page,
@@ -68,6 +69,7 @@ async def main() -> None:
         max_retries = int(actor_input.get("maxRetries", 4))
         debug_save_html = bool(actor_input.get("debugSaveHtml", False))
         use_browser = bool(actor_input.get("useBrowser", True))
+        browser_engine = actor_input.get("browserEngine", "camoufox")
 
         # Normalize direct product URLs (accepts [{url:..}] or ["..."]).
         direct_urls: list[str] = []
@@ -93,14 +95,23 @@ async def main() -> None:
             return await proxy_configuration.new_url()
 
         if use_browser:
-            client = BrowserCardmarketClient(
-                proxy_url_factory=proxy_url_factory,
-                max_retries=max_retries,
-                base_delay_ms=request_delay_ms,
-                logger=Actor.log,
-            )
+            if browser_engine == "chromium":
+                client = BrowserCardmarketClient(
+                    proxy_url_factory=proxy_url_factory,
+                    max_retries=max_retries,
+                    base_delay_ms=request_delay_ms,
+                    logger=Actor.log,
+                )
+                Actor.log.info("Fetch layer: Playwright Chromium")
+            else:
+                client = CamoufoxCardmarketClient(
+                    proxy_url_factory=proxy_url_factory,
+                    max_retries=max_retries,
+                    base_delay_ms=request_delay_ms,
+                    logger=Actor.log,
+                )
+                Actor.log.info("Fetch layer: Camoufox (anti-detect Firefox, CF-challenge capable)")
             await client.start()
-            Actor.log.info("Fetch layer: Playwright browser (Cloudflare JS challenge capable)")
         else:
             client = CardmarketClient(
                 proxy_url_factory=proxy_url_factory,

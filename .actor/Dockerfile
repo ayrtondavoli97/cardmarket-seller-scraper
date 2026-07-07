@@ -6,6 +6,8 @@ RUN echo "Python version:" \
     && python --version \
     && echo "Installing dependencies:" \
     && pip install --no-cache-dir -r requirements.txt \
+    && echo "Fetching Camoufox browser + geoip db:" \
+    && python3 -m camoufox fetch \
     && echo "All installed:" \
     && pip freeze
 

@@ -150,11 +150,20 @@
             "default": false
         },
         "useBrowser": {
-            "title": "Use real browser (Playwright)",
+            "title": "Use real browser",
             "type": "boolean",
             "description": "Required to pass Cardmarket's Cloudflare JS challenge ('Just a moment...'). Disable only for debugging the lightweight HTTP client.",
             "editor": "checkbox",
             "default": true
+        },
+        "browserEngine": {
+            "title": "Browser engine",
+            "type": "string",
+            "description": "camoufox = anti-detect Firefox (passes Cloudflare managed challenge, recommended). chromium = vanilla Playwright (usually blocked by Cardmarket's Cloudflare).",
+            "editor": "select",
+            "default": "camoufox",
+            "enum": ["camoufox", "chromium"],
+            "enumTitles": ["Camoufox (recommended)", "Chromium"]
         }
     },
     "required": ["game"]
