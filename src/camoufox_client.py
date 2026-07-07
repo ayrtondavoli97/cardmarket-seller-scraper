@@ -139,7 +139,7 @@ class CamoufoxCardmarketClient:
 
             page = None
             try:
-                page = await self._browser.new_page()
+                page = await self._browser.new_page(no_viewport=True)
                 page.set_default_navigation_timeout(self._nav_timeout_s * 1000)
                 if referer:
                     await page.set_extra_http_headers({"Referer": referer})
